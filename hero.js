@@ -10,6 +10,7 @@ var scene,
 // OTHER VARIABLES
 
 var PI = Math.PI;
+var deg2radFactor = PI/180;
 var hero;
 var container;
 
@@ -240,47 +241,43 @@ Hero = function() {
   // });
 }
 
+Hero.prototype.eulerVectorToQuaternion = function(eulerVector) {
+  let qZ = new THREE.Quaternion();
+  let qY = new THREE.Quaternion();
+  let qX = new THREE.Quaternion();
+  qZ.setFromAxisAngle(new THREE.Vector3(0,0,1),eulerVector[2]*deg2radFactor);
+  qY.setFromAxisAngle(new THREE.Vector3(0,1,0),eulerVector[1]*deg2radFactor);
+  qX.setFromAxisAngle(new THREE.Vector3(1,0,0),eulerVector[0]*deg2radFactor);
+  return qZ.multiply(qY).multiply(qX);
+
+}
+
 Hero.prototype.isViolatingConstraint = function(boneName, scene) {
-  switch (boneName) {
-    case "root":
-      if (root.rotation.x != 0 || root.rotation.z != 0) {
-        return false;
-      }
-  }
-  return true;
+  return false;
 }
 
 Hero.prototype.reconcileScene = function(lhs, rhs, boneName) {
   let outScene = rhs;
-  for (let i = 0; i < lhs[boneName].length; i++) {
-    outScene[boneName][i] = (lhs[boneName][i] + rhs[boneName][i])/2;
-  }
+  // for (let i = 0; i < lhs[boneName].length; i++) {
+  //   outScene[boneName][i] = (lhs[boneName][i] + rhs[boneName][i])/2;
+  // }
   return outScene;
 }
 
 Hero.prototype.setAMC = function(amc) {
-  for (let i = 1; i < amc.sceneCount; i++) {
-    if (this.isViolatingConstraint("torso",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"lowerback");
-    }
-    if (this.isViolatingConstraint("head",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"head");
-    }
-    if (this.isViolatingConstraint("handR",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"rhumerus");
-    }
-    if (this.isViolatingConstraint("handL",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"lhumerus");
-    }
-    if (this.isViolatingConstraint("legR",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"rtibia");
-    }
-    if (this.isViolatingConstraint("legL",amc.scenes[i])) {
-      amc.scenes[i] = this.reconcileScene(amc.scenes[i-1],amc.scenes[i],"ltibia");
+  var motions = [];
+  console.log(Object.keys(amc.scenes[0]));
+  for (let i = 0; i < amc.sceneCount; i++) {
+    for (const key of Object.keys(amc.scenes[i])) {
+      if (key == "root") {
+        amc.scenes[i].rootPosition = [amc.scenes[i][key][0], amc.scenes[i][key][1], amc.scenes[i][key][2]];
+        amc.scenes[i].root = this.eulerVectorToQuaternion([amc.scenes[i][key][3], amc.scenes[i][key][4], amc.scenes[i][key][5]]);
+      } else {
+        amc.scenes[i][key] = this.eulerVectorToQuaternion(amc.scenes[i][key]);
+      }
     }
   }
-
-  this.motions = amc;
+  this.motions = amc.scenes;
   this.currentFrame = 0;
 }
 
@@ -288,45 +285,19 @@ Hero.prototype.run = function(){
   if (!this.motions) {
     return;
   }
-  if (this.currentFrame >= this.motions.sceneCount) {
+  if (this.currentFrame >= this.motions.length) {
     this.currentFrame = 0;
   }
-  var currentScene = this.motions.scenes[this.currentFrame];
-  let deg2radFactor = PI/180;
+  var currentScene = this.motions[this.currentFrame];
 
-  this.root.position.set(currentScene.root[0],currentScene.root[1],currentScene.root[2]);
-  var rot = new THREE.Vector3(currentScene.root[3],currentScene.root[4],currentScene.root[5]);
-  rot.multiplyScalar(deg2radFactor);
-  this.root.rotation.setFromVector3(rot);
-  // rot.addScaledVector(this.root.rotation.toVector3(), -1);
-  
-  rot.set(currentScene.lowerback[0],currentScene.lowerback[1],currentScene.lowerback[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.torsoPivot.rotation.setFromVector3(rot);
-
-  rot.set(currentScene.rhumerus[0],currentScene.rhumerus[1],currentScene.rhumerus[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.handRPivot.rotation.setFromVector3(rot);
-
-  rot.set(currentScene.lhumerus[0],currentScene.lhumerus[1],currentScene.lhumerus[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.handLPivot.rotation.setFromVector3(rot);
-
-  rot.set(currentScene.head[0],currentScene.head[1],currentScene.head[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.headPivot.rotation.setFromVector3(rot);
-
-  rot.set(currentScene.rtibia[0],currentScene.rtibia[1],currentScene.rtibia[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.legRPivot.rotation.setFromVector3(rot);
-
-  rot.set(currentScene.ltibia[0],currentScene.ltibia[1],currentScene.ltibia[2]);
-  rot.multiplyScalar(deg2radFactor);
-  this.legLPivot.rotation.setFromVector3(rot);
-
-  // console.log(this.currentFrame);
-  // console.log(this.root.position);
-  // console.log(this.root.rotation.toVector3().multiplyScalar(180/PI));
+  this.root.position.set(currentScene.rootPosition[0], currentScene.rootPosition[1], currentScene.rootPosition[2]);
+  this.root.setRotationFromQuaternion(currentScene.root);
+  this.torsoPivot.setRotationFromQuaternion(currentScene.lowerback);
+  this.headPivot.setRotationFromQuaternion(currentScene.head);
+  this.handRPivot.setRotationFromQuaternion(currentScene.rhumerus.multiply(currentScene.rradius));
+  this.handLPivot.setRotationFromQuaternion(currentScene.lhumerus.multiply(currentScene.lradius));
+  this.legRPivot.setRotationFromQuaternion(currentScene.rfemur.multiply(currentScene.rtibia));
+  this.legLPivot.setRotationFromQuaternion(currentScene.lfemur.multiply(currentScene.ltibia));
 
   document.getElementById("frame").innerHTML = this.currentFrame;
 

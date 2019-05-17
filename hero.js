@@ -242,14 +242,10 @@ Hero = function() {
 }
 
 Hero.prototype.eulerVectorToQuaternion = function(eulerVector) {
-  let qZ = new THREE.Quaternion();
-  let qY = new THREE.Quaternion();
-  let qX = new THREE.Quaternion();
-  qZ.setFromAxisAngle(new THREE.Vector3(0,0,1),eulerVector[2]*deg2radFactor);
-  qY.setFromAxisAngle(new THREE.Vector3(0,1,0),eulerVector[1]*deg2radFactor);
-  qX.setFromAxisAngle(new THREE.Vector3(1,0,0),eulerVector[0]*deg2radFactor);
+  let qZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),eulerVector[2]*deg2radFactor);
+  let qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),eulerVector[1]*deg2radFactor);
+  let qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),eulerVector[0]*deg2radFactor);
   return qZ.multiply(qY).multiply(qX);
-
 }
 
 Hero.prototype.isViolatingConstraint = function(boneName, scene) {
@@ -265,8 +261,6 @@ Hero.prototype.reconcileScene = function(lhs, rhs, boneName) {
 }
 
 Hero.prototype.setAMC = function(amc) {
-  var motions = [];
-  console.log(Object.keys(amc.scenes[0]));
   for (let i = 0; i < amc.sceneCount; i++) {
     for (const key of Object.keys(amc.scenes[i])) {
       if (key == "root") {
@@ -291,17 +285,25 @@ Hero.prototype.run = function(){
   var currentScene = this.motions[this.currentFrame];
 
   this.root.position.set(currentScene.rootPosition[0], currentScene.rootPosition[1], currentScene.rootPosition[2]);
-  this.root.setRotationFromQuaternion(currentScene.root);
-  this.torsoPivot.setRotationFromQuaternion(currentScene.lowerback);
-  this.headPivot.setRotationFromQuaternion(currentScene.head);
-  this.handRPivot.setRotationFromQuaternion(currentScene.rhumerus.multiply(currentScene.rradius));
-  this.handLPivot.setRotationFromQuaternion(currentScene.lhumerus.multiply(currentScene.lradius));
-  this.legRPivot.setRotationFromQuaternion(currentScene.rfemur.multiply(currentScene.rtibia));
-  this.legLPivot.setRotationFromQuaternion(currentScene.lfemur.multiply(currentScene.ltibia));
+  // this.root.setRotationFromQuaternion(currentScene.root);
+  // this.torsoPivot.setRotationFromQuaternion(currentScene.lowerback);
+  // this.headPivot.setRotationFromQuaternion(currentScene.head);
+  // this.handRPivot.setRotationFromQuaternion(currentScene.rhumerus.multiply(currentScene.rradius));
+  // this.handLPivot.setRotationFromQuaternion(currentScene.lhumerus.multiply(currentScene.lradius));
+  // this.legRPivot.setRotationFromQuaternion(currentScene.rfemur.multiply(currentScene.rtibia));
+  // this.legLPivot.setRotationFromQuaternion(currentScene.lfemur.multiply(currentScene.ltibia));
+
+  this.root.quaternion.copy(currentScene.root);
+  this.torsoPivot.quaternion.copy(currentScene.lowerback);
+  this.headPivot.quaternion.copy(currentScene.head);
+  this.handRPivot.quaternion.copy(currentScene.rhumerus.multiply(currentScene.rradius));
+  this.handLPivot.quaternion.copy(currentScene.lhumerus.multiply(currentScene.lradius));
+  this.legRPivot.quaternion.copy(currentScene.rfemur.multiply(currentScene.rtibia));
+  this.legLPivot.quaternion.copy(currentScene.lfemur.multiply(currentScene.ltibia));
 
   document.getElementById("frame").innerHTML = this.currentFrame;
 
-  this.currentFrame++;
+  this.currentFrame+=2;
 }
 
 function createHero() {
